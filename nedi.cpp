@@ -24,7 +24,7 @@ static float toGamma(float c)
 	}
 	else
 	{
-		return 1.055f * pow(c, 1.0f/2.4f) - 0.055f;
+		return 1.055f * pow(c, 1.0f / 2.4f) - 0.055f;
 	}
 }
 
@@ -42,9 +42,9 @@ static float toLinear(float c)
 
 static void nedi_init()
 {
-	for (int i=0; i<256; i++) 
+	for (int i = 0; i < 256; i++)
 	{
-		gamma[i] = toLinear((float)i/255.0f);
+		gamma[i] = toLinear((float)i / 255.0f);
 	}
 }
 
@@ -55,7 +55,8 @@ static float clamp(float v, float lo, float hi)
 	}
 	else if (v > hi) {
 		return hi;
-	} else {
+	}
+	else {
 		return v;
 	}
 }
@@ -88,8 +89,8 @@ static void fixBorders(Eigen::ArrayXXf & work, WrapMode xWrap, WrapMode yWrap, i
 			int yb2 = (inHeight + border - 1) * 2 + yofs;
 			for (int x = 0; x < inWidth; x++) {
 				int xa = (x + border) * 2 + xofs;
-					work(ya1, xa) = work(yb1, xa);
-					work(ya2, xa) = work(yb2, xa);
+				work(ya1, xa) = work(yb1, xa);
+				work(ya2, xa) = work(yb2, xa);
 			}
 		}
 		break;
@@ -101,8 +102,8 @@ static void fixBorders(Eigen::ArrayXXf & work, WrapMode xWrap, WrapMode yWrap, i
 			int yb2 = ((inHeight - y - 1) % inHeight + border) * 2 - yofs;
 			for (int x = 0; x < inWidth; x++) {
 				int xa = (x + border) * 2 + xofs;
-					work(ya1, xa) = work(yb1, xa);
-					work(ya2, xa) = work(yb2, xa);
+				work(ya1, xa) = work(yb1, xa);
+				work(ya2, xa) = work(yb2, xa);
 			}
 		}
 		break;
@@ -116,8 +117,8 @@ static void fixBorders(Eigen::ArrayXXf & work, WrapMode xWrap, WrapMode yWrap, i
 			int xb2 = (x % inWidth + border) * 2 + xofs;
 			for (int y = 0; y < inHeight; y++) {
 				int ya = (y + border) * 2 + yofs;
-					work(ya, xa1) = work(ya, xb1);
-					work(ya, xa2) = work(ya, xb2);
+				work(ya, xa1) = work(ya, xb1);
+				work(ya, xa2) = work(ya, xb2);
 			}
 		}
 		break;
@@ -129,8 +130,8 @@ static void fixBorders(Eigen::ArrayXXf & work, WrapMode xWrap, WrapMode yWrap, i
 			int xb2 = (inWidth + border - 1) * 2 + xofs;
 			for (int y = 0; y < inHeight; y++) {
 				int ya = (y + border) * 2 + yofs;
-					work(ya, xa1) = work(ya, xb1);
-					work(ya, xa2) = work(ya, xb2);
+				work(ya, xa1) = work(ya, xb1);
+				work(ya, xa2) = work(ya, xb2);
 			}
 		}
 		break;
@@ -142,54 +143,54 @@ static void fixBorders(Eigen::ArrayXXf & work, WrapMode xWrap, WrapMode yWrap, i
 			int xb2 = ((inWidth - x - 1) % inWidth + border) * 2 - xofs;
 			for (int y = 0; y < inHeight; y++) {
 				int ya = (y + border) * 2 + yofs;
-					work(ya, xa1) = work(ya, xb1);
-					work(ya, xa2) = work(ya, xb2);
+				work(ya, xa1) = work(ya, xb1);
+				work(ya, xa2) = work(ya, xb2);
 			}
 		}
 		break;
 	}
-		for (int x = 0; x < border; x++) {
-			int xa1 = x * 2 + xofs;
-			int xa2 = (x + inWidth + border) * 2 + xofs;
-			int xb1, xb2;
-			switch (xWrap) {
+	for (int x = 0; x < border; x++) {
+		int xa1 = x * 2 + xofs;
+		int xa2 = (x + inWidth + border) * 2 + xofs;
+		int xb1, xb2;
+		switch (xWrap) {
+		case WrapMode_Clamp:
+			xb1 = border * 2 + xofs;
+			xb2 = (inWidth + border - 1) * 2 + xofs;
+			break;
+		case WrapMode_Wrap:
+			xb1 = ((x - border + inWidth) % inWidth + border) * 2 + xofs;
+			xb2 = (x % inWidth + border) * 2 + xofs;
+			break;
+		case WrapMode_Mirror:
+			xb1 = ((border - x + inWidth) % inWidth + border) * 2 - xofs;
+			xb2 = ((inWidth - x - 1) % inWidth + border) * 2 - xofs;
+			break;
+		}
+		for (int y = 0; y < border; y++) {
+			int ya1 = y * 2 + yofs;
+			int ya2 = (y + inHeight + border) * 2 + yofs;
+			int yb1, yb2;
+			switch (yWrap) {
 			case WrapMode_Clamp:
-				xb1 = border * 2 + xofs;
-				xb2 = (inWidth + border - 1) * 2 + xofs;
+				yb1 = border * 2 + yofs;
+				yb2 = (inHeight + border - 1) * 2 + yofs;
 				break;
 			case WrapMode_Wrap:
-				xb1 = ((x - border + inWidth) % inWidth + border) * 2 + xofs;
-				xb2 = (x % inWidth + border) * 2 + xofs;
+				yb1 = ((y - border + inHeight) % inHeight + border) * 2 + yofs;
+				yb2 = (y % inHeight + border) * 2 + yofs;
 				break;
 			case WrapMode_Mirror:
-				xb1 = ((border - x + inWidth) % inWidth + border) * 2 - xofs;
-				xb2 = ((inWidth - x - 1) % inWidth + border) * 2 - xofs;
+				yb1 = ((border - y + inHeight) % inHeight + border) * 2 - yofs;
+				yb2 = ((inHeight - y - 1) % inHeight + border) * 2 - yofs;
 				break;
 			}
-			for (int y = 0; y < border; y++) {
-				int ya1 = y * 2 + yofs;
-				int ya2 = (y + inHeight + border) * 2 + yofs;
-				int yb1, yb2;
-				switch (yWrap) {
-				case WrapMode_Clamp:
-					yb1 = border * 2 + yofs;
-					yb2 = (inHeight + border - 1) * 2 + yofs;
-					break;
-				case WrapMode_Wrap:
-					yb1 = ((y - border + inHeight) % inHeight + border) * 2 + yofs;
-					yb2 = (y % inHeight + border) * 2 + yofs;
-					break;
-				case WrapMode_Mirror:
-					yb1 = ((border - y + inHeight) % inHeight + border) * 2 - yofs;
-					yb2 = ((inHeight - y - 1) % inHeight + border) * 2 - yofs;
-					break;
-				}
-					work(ya1, xa1) = work(yb1, xb1);
-					work(ya2, xa2) = work(yb2, xb2);
-					work(ya2, xa1) = work(yb2, xb1);
-					work(ya1, xa2) = work(yb1, xb2);
-			}
+			work(ya1, xa1) = work(yb1, xb1);
+			work(ya2, xa2) = work(yb2, xb2);
+			work(ya2, xa1) = work(yb2, xb1);
+			work(ya1, xa2) = work(yb1, xb2);
 		}
+	}
 }
 
 static void normalise_weights(Eigen::Vector4d & a)
@@ -234,14 +235,14 @@ static Eigen::Vector4d solve(const Eigen::MatrixXd & C, const Eigen::VectorXd & 
 	}
 }
 
-static void nedi_diag(Eigen::ArrayXXf & work_r,Eigen::ArrayXXf & work_g,Eigen::ArrayXXf & work_b,Eigen::ArrayXXf & work_a, int dx, int dy, int width, int height)
+static void nedi_diag(Eigen::ArrayXXf & work_r, Eigen::ArrayXXf & work_g, Eigen::ArrayXXf & work_b, Eigen::ArrayXXf & work_a, int dx, int dy, int width, int height)
 {
 	// half kernel size and kernel size
 	const int M2 = 3;
 	const int M = M2 * 2;
 	const int border = M + 1;
 
-	const Eigen::Vector4f rgba_to_float( 0.2126f * 0.75f, 0.7152f * 0.75f, 0.0722f * 0.75f, 0.25f);
+	const Eigen::Vector4f rgba_to_float(0.2126f * 0.75f, 0.7152f * 0.75f, 0.0722f * 0.75f, 0.25f);
 
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
@@ -260,14 +261,14 @@ static void nedi_diag(Eigen::ArrayXXf & work_r,Eigen::ArrayXXf & work_g,Eigen::A
 
 							int xpos = (ixx + border) * 2;
 							int ypos = (iyy + border) * 2;
-							Eigen::Vector4f col(work_r(ypos,xpos), work_g(ypos,xpos), work_b(ypos,xpos), work_a(ypos,xpos));
+							Eigen::Vector4f col(work_r(ypos, xpos), work_g(ypos, xpos), work_b(ypos, xpos), work_a(ypos, xpos));
 							C(ny * M + nx, iy * 2 + ix) = col.dot(rgba_to_float);
 						}
 					}
 
 					int xpos = (xx + border) * 2;
 					int ypos = (yy + border) * 2;
-					Eigen::Vector4f col(work_r(ypos,xpos), work_g(ypos,xpos), work_b(ypos,xpos), work_a(ypos,xpos));
+					Eigen::Vector4f col(work_r(ypos, xpos), work_g(ypos, xpos), work_b(ypos, xpos), work_a(ypos, xpos));
 					r(ny*M + nx) = col.dot(rgba_to_float);
 				}
 			}
@@ -276,7 +277,7 @@ static void nedi_diag(Eigen::ArrayXXf & work_r,Eigen::ArrayXXf & work_g,Eigen::A
 
 			// interpolate (all channels with the same weight)
 			for (int c = 0; c < 4; c++) {
-				Eigen::Vector4f v( 0.0f, 0.0f, 0.0f, 0.0f);
+				Eigen::Vector4f v(0.0f, 0.0f, 0.0f, 0.0f);
 				for (int my = 0; my < 2; my++) {
 					for (int mx = 0; mx < 2; mx++) {
 						int xpos = (x + mx + border) * 2 + dx - 1;
@@ -298,14 +299,14 @@ static void nedi_diag(Eigen::ArrayXXf & work_r,Eigen::ArrayXXf & work_g,Eigen::A
 	}
 }
 
-static void nedi_cross(Eigen::ArrayXXf & work_r,Eigen::ArrayXXf & work_g,Eigen::ArrayXXf & work_b,Eigen::ArrayXXf & work_a, int dx, int dy, int width, int height)
+static void nedi_cross(Eigen::ArrayXXf & work_r, Eigen::ArrayXXf & work_g, Eigen::ArrayXXf & work_b, Eigen::ArrayXXf & work_a, int dx, int dy, int width, int height)
 {
 	// half kernel size and kernel size
 	const int M2 = 3;
 	const int M = M2 * 2;
 	const int border = M + 1;
 
-	const Eigen::Vector4f rgba_to_float( 0.2126f * 0.75f, 0.7152f * 0.75f, 0.0722f * 0.75f, 0.25f);
+	const Eigen::Vector4f rgba_to_float(0.2126f * 0.75f, 0.7152f * 0.75f, 0.0722f * 0.75f, 0.25f);
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
 			Eigen::MatrixXd C(M*M, 4);
@@ -324,13 +325,13 @@ static void nedi_cross(Eigen::ArrayXXf & work_r,Eigen::ArrayXXf & work_g,Eigen::
 							int xpos = ixx + border * 2;
 							int ypos = iyy + border * 2;
 
-							Eigen::Vector4f col(work_r(ypos,xpos), work_g(ypos,xpos), work_b(ypos,xpos), work_a(ypos,xpos));
+							Eigen::Vector4f col(work_r(ypos, xpos), work_g(ypos, xpos), work_b(ypos, xpos), work_a(ypos, xpos));
 							C(ny * M + nx, iy * 2 + ix) = col.dot(rgba_to_float);
 						}
 					}
 					int xpos = xx + border * 2;
 					int ypos = yy + border * 2;
-					Eigen::Vector4f col(work_r(ypos,xpos), work_g(ypos,xpos), work_b(ypos,xpos), work_a(ypos,xpos));
+					Eigen::Vector4f col(work_r(ypos, xpos), work_g(ypos, xpos), work_b(ypos, xpos), work_a(ypos, xpos));
 					r(ny*M + nx) = col.dot(rgba_to_float);
 				}
 			}
@@ -380,10 +381,10 @@ static void nedi_scale(uint8_t * src, uint8_t * dst, int width, int height, Wrap
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
 			uint32_t ofs = (y * width + x) * 4;
-			work_r((y + border) * 2, (x + border) * 2) = gamma[src[ofs+0]];
-			work_g((y + border) * 2, (x + border) * 2) = gamma[src[ofs+1]];
-			work_b((y + border) * 2, (x + border) * 2) = gamma[src[ofs+2]];
-			work_a((y + border) * 2, (x + border) * 2) = src[ofs+3] / 255.0f;
+			work_r((y + border) * 2, (x + border) * 2) = gamma[src[ofs + 0]];
+			work_g((y + border) * 2, (x + border) * 2) = gamma[src[ofs + 1]];
+			work_b((y + border) * 2, (x + border) * 2) = gamma[src[ofs + 2]];
+			work_a((y + border) * 2, (x + border) * 2) = src[ofs + 3] / 255.0f;
 		}
 	}
 
@@ -418,10 +419,10 @@ static void nedi_scale(uint8_t * src, uint8_t * dst, int width, int height, Wrap
 	for (int y = 0; y < height * 2; y++) {
 		for (int x = 0; x < width * 2; x++) {
 			uint32_t ofs = (y * width * 2 + x) * 4;
-			dst[ofs+0] = (int)std::round(clamp(toGamma(work_r(y + border * 2,x + border * 2)) * 255.0f, 0.0f, 255.0f));
-			dst[ofs+1] = (int)std::round(clamp(toGamma(work_g(y + border * 2,x + border * 2)) * 255.0f, 0.0f, 255.0f));
-			dst[ofs+2] = (int)std::round(clamp(toGamma(work_b(y + border * 2,x + border * 2)) * 255.0f, 0.0f, 255.0f));
-			dst[ofs+3] = (int)std::round(clamp(work_a(y + border * 2,x + border * 2) * 255.0f, 0.0f, 255.0f));
+			dst[ofs + 0] = (int)std::round(clamp(toGamma(work_r(y + border * 2, x + border * 2)) * 255.0f, 0.0f, 255.0f));
+			dst[ofs + 1] = (int)std::round(clamp(toGamma(work_g(y + border * 2, x + border * 2)) * 255.0f, 0.0f, 255.0f));
+			dst[ofs + 2] = (int)std::round(clamp(toGamma(work_b(y + border * 2, x + border * 2)) * 255.0f, 0.0f, 255.0f));
+			dst[ofs + 3] = (int)std::round(clamp(work_a(y + border * 2, x + border * 2) * 255.0f, 0.0f, 255.0f));
 		}
 	}
 }
