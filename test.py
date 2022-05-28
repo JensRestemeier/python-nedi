@@ -10,10 +10,22 @@ def roundPot(x):
     x = x | (x >> 16)
     return x - (x >> 1)
 
-def rescale(img):
+def upscale(img, steps):
+    for i in range(steps):
+        img = nedi.nedi(img)
+        img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+
+    if (steps % 2) != 0:
+        img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+    return img
+
+def process(img):
     # Trim the stretched area from using non-pot texture sizes:
+    # (This will unfortunately trim intentional padding as well, causing many alignment problems.)
     y_max = img.height - 1
-    while y_max > 1:
+    while y_max > 0:
         match = True
         for x in range(img.width):
             match = img.getpixel((x,y_max)) == img.getpixel((x,y_max-1))
@@ -24,7 +36,7 @@ def rescale(img):
         y_max -= 1
 
     x_max = img.width - 1
-    while x_max > 1:
+    while x_max > 0:
         match = True
         for y in range(y_max):
             match = img.getpixel((x_max,y)) == img.getpixel((x_max-1,y))
@@ -37,20 +49,20 @@ def rescale(img):
     img = img.crop((0,0,x_max + 1, y_max + 1))
 
     # scale x8
-    for i in range(3):
-        img = nedi.scale(img)
+    img = upscale(img, 3)
 
-    # scale to POT
+    # scale down to POT
     img = img.resize((roundPot(img.width), roundPot(img.height)), resample=Image.Resampling.BOX)
 
     return img
 
 def main():
+    # apply to a directory of PNG files
     for src in glob.glob("JFG-SRC/*.png"):
         # print (src)
         img = Image.open(src)
 
-        img = rescale(img)
+        img = process(img)
 
         dst = os.path.join("JFG-DST", os.path.basename(src))
         os.makedirs(os.path.dirname(dst), exist_ok=True)

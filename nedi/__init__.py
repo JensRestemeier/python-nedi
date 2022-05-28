@@ -1,7 +1,7 @@
 import _nedi
 from PIL import Image
 
-def scale(src_img : Image) -> Image:
+def nedi(src_img : Image) -> Image:
     if src_img.mode != "RGBA":
         src_img = src_img.convert("RGBA")
 
