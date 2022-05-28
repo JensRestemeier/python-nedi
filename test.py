@@ -11,14 +11,13 @@ def roundPot(x):
     return x - (x >> 1)
 
 def upscale(img, steps):
+    # apply the algorithm a few times. I noticed the way the image is interpolated introduces a small shift, flipping the image is supposed to counteract that.
     for i in range(steps):
-        img = nedi.nedi(img)
-        img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+        img = nedi.nedi(img, kernel=3)
+        img = img.transpose(Image.Transpose.ROTATE_180)
 
     if (steps % 2) != 0:
-        img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+        img = img.transpose(Image.Transpose.ROTATE_180)
     return img
 
 def process(img):

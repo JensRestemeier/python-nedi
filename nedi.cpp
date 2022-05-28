@@ -7,13 +7,14 @@
 #include <Eigen/Dense>
 
 enum WrapMode {
-	WrapMode_Clamp,
-	WrapMode_Wrap,
-	WrapMode_Mirror,
+	WrapMode_Clamp = 0,
+	WrapMode_Wrap = 1,
+	WrapMode_Mirror = 2,
 
 	WrapMode_Max
 };
 
+// map from gamma space to linear space
 float gamma[256];
 
 static float toGamma(float c)
@@ -42,6 +43,7 @@ static float toLinear(float c)
 
 static void nedi_init()
 {
+	// precalculate gamma ramp
 	for (int i = 0; i < 256; i++)
 	{
 		gamma[i] = toLinear((float)i / 255.0f);
@@ -65,8 +67,8 @@ static float clamp(float v, float lo, float hi)
 static void fixBorders(Eigen::ArrayXXf & work, WrapMode xWrap, WrapMode yWrap, int border, int xofs, int yofs)
 {
 	// fill in border
-	int inHeight = work.rows() / 2 - border * 2;
-	int inWidth = work.cols() / 2 - border * 2;
+	int inHeight = (int)work.rows() / 2 - border * 2;
+	int inWidth = (int)work.cols() / 2 - border * 2;
 	switch (yWrap) {
 	case WrapMode_Wrap:
 		for (int y = 0; y < border; y++) {
@@ -149,6 +151,7 @@ static void fixBorders(Eigen::ArrayXXf & work, WrapMode xWrap, WrapMode yWrap, i
 		}
 		break;
 	}
+	// not sure why this is separate... I think I planned some special case handling for a future wrap mode.
 	for (int x = 0; x < border; x++) {
 		int xa1 = x * 2 + xofs;
 		int xa2 = (x + inWidth + border) * 2 + xofs;
@@ -235,10 +238,9 @@ static Eigen::Vector4d solve(const Eigen::MatrixXd & C, const Eigen::VectorXd & 
 	}
 }
 
-static void nedi_diag(Eigen::ArrayXXf & work_r, Eigen::ArrayXXf & work_g, Eigen::ArrayXXf & work_b, Eigen::ArrayXXf & work_a, int dx, int dy, int width, int height)
+static void nedi_diag(int M2, Eigen::ArrayXXf & work_r, Eigen::ArrayXXf & work_g, Eigen::ArrayXXf & work_b, Eigen::ArrayXXf & work_a, int dx, int dy, int width, int height)
 {
 	// half kernel size and kernel size
-	const int M2 = 3;
 	const int M = M2 * 2;
 	const int border = M + 1;
 
@@ -249,7 +251,7 @@ static void nedi_diag(Eigen::ArrayXXf & work_r, Eigen::ArrayXXf & work_g, Eigen:
 			Eigen::MatrixXd C(M * M, 4);
 			Eigen::VectorXd r(M * M);
 
-			// calculate weights (based on L*)
+			// calculate weights
 			for (int ny = 0; ny < M; ny++) {
 				for (int nx = 0; nx < M; nx++) {
 					int xx = x + nx - M2 + dx;
@@ -299,10 +301,9 @@ static void nedi_diag(Eigen::ArrayXXf & work_r, Eigen::ArrayXXf & work_g, Eigen:
 	}
 }
 
-static void nedi_cross(Eigen::ArrayXXf & work_r, Eigen::ArrayXXf & work_g, Eigen::ArrayXXf & work_b, Eigen::ArrayXXf & work_a, int dx, int dy, int width, int height)
+static void nedi_cross(int M2, Eigen::ArrayXXf & work_r, Eigen::ArrayXXf & work_g, Eigen::ArrayXXf & work_b, Eigen::ArrayXXf & work_a, int dx, int dy, int width, int height)
 {
 	// half kernel size and kernel size
-	const int M2 = 3;
 	const int M = M2 * 2;
 	const int border = M + 1;
 
@@ -338,7 +339,7 @@ static void nedi_cross(Eigen::ArrayXXf & work_r, Eigen::ArrayXXf & work_g, Eigen
 
 			Eigen::Vector4d a = solve(C, r);
 
-			// interpolate
+			// interpolate (all channels with the same weight)
 			for (int c = 0; c < 4; c++) {
 				Eigen::Vector4f v(0.0f, 0.0f, 0.0f, 0.0f);
 				for (int my = 0; my < 2; my++) {
@@ -364,10 +365,9 @@ static void nedi_cross(Eigen::ArrayXXf & work_r, Eigen::ArrayXXf & work_g, Eigen
 	}
 }
 
-static void nedi_scale(uint8_t * src, uint8_t * dst, int width, int height, WrapMode xWrap, WrapMode yWrap)
+static void nedi_scale(int M2, uint8_t * src, uint8_t * dst, int width, int height, WrapMode xWrap, WrapMode yWrap)
 {
 	// half kernel size and kernel size
-	const int M2 = 3;
 	const int M = M2 * 2;
 	const int border = M + 1;
 
@@ -395,7 +395,7 @@ static void nedi_scale(uint8_t * src, uint8_t * dst, int width, int height, Wrap
 	fixBorders(work_a, xWrap, yWrap, border, 0, 0);
 
 	// diagonal pass
-	nedi_diag(work_r, work_g, work_b, work_a, 1, 1, width, height);
+	nedi_diag(M2, work_r, work_g, work_b, work_a, 1, 1, width, height);
 #if 0
 	// copy the correct pixel into the border region
 	fixBorders(work, xWrap, yWrap, border, 0, 0);
@@ -410,19 +410,19 @@ static void nedi_scale(uint8_t * src, uint8_t * dst, int width, int height, Wrap
 	fixBorders(work_a, xWrap, yWrap, border, 1, 1);
 
 	// horizontal pass
-	nedi_cross(work_r, work_g, work_b, work_a, 1, 0, width, height);
+	nedi_cross(M2, work_r, work_g, work_b, work_a, 1, 0, width, height);
 
 	// vertical pass
-	nedi_cross(work_r, work_g, work_b, work_a, 0, 1, width, height);
+	nedi_cross(M2, work_r, work_g, work_b, work_a, 0, 1, width, height);
 
 	// crop the final data out of the work image
 	for (int y = 0; y < height * 2; y++) {
 		for (int x = 0; x < width * 2; x++) {
 			uint32_t ofs = (y * width * 2 + x) * 4;
-			dst[ofs + 0] = (int)std::round(clamp(toGamma(work_r(y + border * 2, x + border * 2)) * 255.0f, 0.0f, 255.0f));
-			dst[ofs + 1] = (int)std::round(clamp(toGamma(work_g(y + border * 2, x + border * 2)) * 255.0f, 0.0f, 255.0f));
-			dst[ofs + 2] = (int)std::round(clamp(toGamma(work_b(y + border * 2, x + border * 2)) * 255.0f, 0.0f, 255.0f));
-			dst[ofs + 3] = (int)std::round(clamp(work_a(y + border * 2, x + border * 2) * 255.0f, 0.0f, 255.0f));
+			dst[ofs + 0] = (uint8_t)std::round(clamp(toGamma(work_r(y + border * 2, x + border * 2)) * 255.0f, 0.0f, 255.0f));
+			dst[ofs + 1] = (uint8_t)std::round(clamp(toGamma(work_g(y + border * 2, x + border * 2)) * 255.0f, 0.0f, 255.0f));
+			dst[ofs + 2] = (uint8_t)std::round(clamp(toGamma(work_b(y + border * 2, x + border * 2)) * 255.0f, 0.0f, 255.0f));
+			dst[ofs + 3] = (uint8_t)std::round(clamp(work_a(y + border * 2, x + border * 2) * 255.0f, 0.0f, 255.0f));
 		}
 	}
 }
@@ -434,15 +434,18 @@ py_nedi(PyObject* self, PyObject* args) {
 	Py_buffer src;
 	int width;
 	int height;
+	int kernel;
+	int wrap_x;
+	int wrap_y;
 
-	if (PyArg_ParseTuple(args, "y*ii", &src, &width, &height)) {
+	if (PyArg_ParseTuple(args, "y*iiiii", &src, &width, &height, &kernel, &wrap_x, &wrap_y)) {
 		int scale = 2;
 		int dest_width = width * scale;
 		int dest_height = height * scale;
 		int dest_buffer_size = dest_width * dest_height * 4;
 		uint8_t * dest_buffer = new uint8_t[dest_buffer_size];
 
-		nedi_scale((uint8_t*)src.buf, dest_buffer, width, height, WrapMode_Clamp, WrapMode_Clamp);
+		nedi_scale(kernel, (uint8_t*)src.buf, dest_buffer, width, height, (WrapMode)wrap_x, (WrapMode)wrap_y);
 		PyBuffer_Release(&src);
 
 		PyObject * _dest = PyBytes_FromStringAndSize((const char*)dest_buffer, dest_buffer_size);

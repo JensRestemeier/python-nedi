@@ -13,6 +13,8 @@ This is my implementation of the New Edge-Directed Interpolation algorithm:
 }
 ```
 
+My code for this is ancient - I am not sure why I made some of the technical decisions, but it seems to work OK.
+
 A quick example:
 ```python
 from PIL import Image
